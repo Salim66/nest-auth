@@ -12,4 +12,8 @@ export class UserService {
     async save(body) {
         return await this.userRepository.save(body);
     }
+
+    async login(options) {
+        return await this.userRepository.findOne({ where: options });
+    }
 }
