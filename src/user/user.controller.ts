@@ -1,8 +1,8 @@
-import { BadRequestException, Body, Controller, Post, Res } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Post, Req, Res, UnauthorizedException } from '@nestjs/common';
 import { UserService } from './user.service';
 import * as bcryptjs from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 
 @Controller('')
 export class UserController {
@@ -10,7 +10,7 @@ export class UserController {
         private userService: UserService,
         private jwtService: JwtService
     ) { }
-    
+
     @Post("/register")
     async register(@Body() body: any) {
         if (body.password !== body.password_confirm) {
@@ -29,22 +29,24 @@ export class UserController {
     async login(
         @Body('email') email: string,
         @Body('password') password: string,
-        @Res({passthrough: true}) response: Response
+        @Res({ passthrough: true }) response: Response
     ) {
-        const user = await this.userService.login({ email });
+        const user = await this.userService.findOne({ email });
 
         if (!user) {
             throw new BadRequestException("Invalid Credentials");
         }
 
-        if (await bcryptjs.compare(password, user.password)) {
+        const passwordMatch = await bcryptjs.compare(password, user.password)
+
+        if (!passwordMatch) {
             throw new BadRequestException("Invalid Credentails");
         }
 
         const accessToken = await this.jwtService.signAsync({
             id: user.id
-        }, { expiresIn: '30s' })
-        
+        }, { expiresIn: '60s' })
+
         const refreshToken = await this.jwtService.signAsync({
             id: user.id
         })
@@ -58,5 +60,23 @@ export class UserController {
         return {
             token: accessToken
         };
+    }
+
+    @Get('user')
+    async User(
+        @Req() request: Request
+    ) {
+        try {
+            const accessToken = request.headers.authorization.replace('Bearer ', '');
+
+            const {id} = await this.jwtService.verifyAsync(accessToken);
+
+            const {password, ...data} = await this.userService.findOne({ id })
+
+            return data;
+
+        } catch (error) {
+            throw new UnauthorizedException();
+        }
     }
 }

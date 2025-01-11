@@ -13,7 +13,7 @@ export class UserService {
         return await this.userRepository.save(body);
     }
 
-    async login(options) {
+    async findOne(options) {
         return await this.userRepository.findOne({ where: options });
     }
 }
