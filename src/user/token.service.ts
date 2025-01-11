@@ -16,4 +16,8 @@ export class TokenService {
     async findOne(options) {
         return await this.tokenRepository.findOne({ where: options });
     }
+
+    async delete(options) {
+        return await this.tokenRepository.delete(options);
+    }
 }

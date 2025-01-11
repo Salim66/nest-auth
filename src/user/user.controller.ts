@@ -81,9 +81,9 @@ export class UserController {
         try {
             const accessToken = request.headers.authorization.replace('Bearer ', '');
 
-            const {id} = await this.jwtService.verifyAsync(accessToken);
+            const { id } = await this.jwtService.verifyAsync(accessToken);
 
-            const {password, ...data} = await this.userService.findOne({ id })
+            const { password, ...data } = await this.userService.findOne({ id })
 
             return data;
 
@@ -95,11 +95,11 @@ export class UserController {
     @Post('refresh')
     async refresh(
         @Req() request: Request,
-        @Res({passthrough: true}) response: Response
+        @Res({ passthrough: true }) response: Response
     ) {
         try {
             const refreshToken = request.cookies['refresh_token'];
-            
+
             const { id } = await this.jwtService.verifyAsync(refreshToken);
 
             const tokenEntity = await this.tokenService.findOne({
@@ -125,8 +125,11 @@ export class UserController {
 
     @Post('logout')
     async logout(
-        @Res({passthrough: true}) response: Response
+        @Req() request: Request,
+        @Res({ passthrough: true }) response: Response
     ) {
+        await this.tokenService.delete({ token: request.cookies['refresh_token'] });
+
         response.clearCookie('refresh_token');
 
         return {
