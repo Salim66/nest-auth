@@ -3,12 +3,15 @@ import { UserService } from './user.service';
 import * as bcryptjs from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
 import { Request, Response } from 'express';
+import { TokenService } from './token.service';
+import { MoreThanOrEqual } from 'typeorm';
 
 @Controller('')
 export class UserController {
     constructor(
         private userService: UserService,
-        private jwtService: JwtService
+        private jwtService: JwtService,
+        private tokenService: TokenService
     ) { }
 
     @Post("/register")
@@ -51,6 +54,15 @@ export class UserController {
             id: user.id
         })
 
+        let expired_at = new Date();
+        expired_at.setDate(expired_at.getDate() + 7);
+
+        await this.tokenService.save({
+            user_id: user.id,
+            token: refreshToken,
+            expired_at
+        })
+
         response.status(200);
         response.cookie('refresh_token', refreshToken, {
             httpOnly: true,
@@ -89,6 +101,15 @@ export class UserController {
             const refreshToken = request.cookies['refresh_token'];
             
             const { id } = await this.jwtService.verifyAsync(refreshToken);
+
+            const tokenEntity = await this.tokenService.findOne({
+                user_id: id,
+                expired_at: MoreThanOrEqual(new Date)
+            })
+
+            if (!tokenEntity) {
+                throw new UnauthorizedException();
+            }
 
             response.status(200);
             const token = await this.jwtService.signAsync({ id }, { expiresIn: '30s' });
