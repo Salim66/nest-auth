@@ -90,6 +90,7 @@ export class UserController {
             
             const { id } = await this.jwtService.verifyAsync(refreshToken);
 
+            response.status(200);
             const token = await this.jwtService.signAsync({ id }, { expiresIn: '30s' });
 
             return {
@@ -98,6 +99,17 @@ export class UserController {
 
         } catch (error) {
             throw new UnauthorizedException();
+        }
+    }
+
+    @Post('logout')
+    async logout(
+        @Res({passthrough: true}) response: Response
+    ) {
+        response.clearCookie('refresh_token');
+
+        return {
+            message: 'success'
         }
     }
 }
