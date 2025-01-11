@@ -1,10 +1,15 @@
-import { BadRequestException, Body, Controller, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Post, Res } from '@nestjs/common';
 import { UserService } from './user.service';
 import * as bcryptjs from 'bcryptjs';
+import { JwtService } from '@nestjs/jwt';
+import { Response } from 'express';
 
 @Controller('api')
 export class UserController {
-    constructor(private userService: UserService) { }
+    constructor(
+        private userService: UserService,
+        private jwtService: JwtService
+    ) { }
     
     @Post("/register")
     async register(@Body() body: any) {
@@ -23,7 +28,8 @@ export class UserController {
     @Post("/login")
     async login(
         @Body('email') email: string,
-        @Body('password') password: string
+        @Body('password') password: string,
+        @Res({passthrough: true}) response: Response
     ) {
         const user = await this.userService.login({ email });
 
@@ -35,6 +41,21 @@ export class UserController {
             throw new BadRequestException("Invalid Credentails");
         }
 
-        return user;
+        const accessToken = await this.jwtService.signAsync({
+            id: user.id
+        }, { expiresIn: '30s' })
+        
+        const refreshToken = await this.jwtService.signAsync({
+            id: user.id
+        })
+
+        response.cookie('refresh_token', refreshToken, {
+            httpOnly: true,
+            maxAge: 7 * 24 * 60 * 60 * 1000 //1 week
+        })
+
+        return {
+            token: accessToken
+        };
     }
 }
