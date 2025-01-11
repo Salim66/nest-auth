@@ -45,7 +45,7 @@ export class UserController {
 
         const accessToken = await this.jwtService.signAsync({
             id: user.id
-        }, { expiresIn: '60s' })
+        }, { expiresIn: '30s' })
 
         const refreshToken = await this.jwtService.signAsync({
             id: user.id
@@ -74,6 +74,27 @@ export class UserController {
             const {password, ...data} = await this.userService.findOne({ id })
 
             return data;
+
+        } catch (error) {
+            throw new UnauthorizedException();
+        }
+    }
+
+    @Post('refresh')
+    async refresh(
+        @Req() request: Request,
+        @Res({passthrough: true}) response: Response
+    ) {
+        try {
+            const refreshToken = request.cookies['refresh_token'];
+            
+            const { id } = await this.jwtService.verifyAsync(refreshToken);
+
+            const token = await this.jwtService.signAsync({ id }, { expiresIn: '30s' });
+
+            return {
+                token
+            };
 
         } catch (error) {
             throw new UnauthorizedException();
