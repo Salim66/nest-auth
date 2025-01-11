@@ -4,7 +4,7 @@ import * as bcryptjs from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
 import { Response } from 'express';
 
-@Controller('api')
+@Controller('')
 export class UserController {
     constructor(
         private userService: UserService,
@@ -49,6 +49,7 @@ export class UserController {
             id: user.id
         })
 
+        response.status(200);
         response.cookie('refresh_token', refreshToken, {
             httpOnly: true,
             maxAge: 7 * 24 * 60 * 60 * 1000 //1 week
