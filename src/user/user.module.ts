@@ -17,6 +17,7 @@ import { Token } from './token.entity';
         }),
     ],
     controllers: [UserController],
-    providers: [UserService, TokenService]
+    providers: [UserService, TokenService],
+    exports: [UserService]
 })
 export class UserModule {}

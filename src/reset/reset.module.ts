@@ -4,6 +4,7 @@ import { Reset } from './reset.entity';
 import { ResetController } from './reset.controller';
 import { ResetService } from './reset.service';
 import { MailerModule } from '@nestjs-modules/mailer';
+import { UserModule } from 'src/user/user.module';
 
 @Module({
     imports: [
@@ -16,7 +17,8 @@ import { MailerModule } from '@nestjs-modules/mailer';
             defaults: {
                 from: 'from@example.com'
             }
-        })
+        }),
+        UserModule
     ],
     controllers: [ResetController],
     providers: [ResetService]
