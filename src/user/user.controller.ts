@@ -5,6 +5,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Request, Response } from 'express';
 import { TokenService } from './token.service';
 import { MoreThanOrEqual } from 'typeorm';
+import * as speackeasy from 'speakeasy';
 
 @Controller('')
 export class UserController {
@@ -40,38 +41,57 @@ export class UserController {
             throw new BadRequestException("Invalid Credentials");
         }
 
-        const passwordMatch = await bcryptjs.compare(password, user.password)
-
-        if (!passwordMatch) {
+        if (!await bcryptjs.compare(password, user.password)) {
             throw new BadRequestException("Invalid Credentails");
         }
 
-        const accessToken = await this.jwtService.signAsync({
-            id: user.id
-        }, { expiresIn: '30s' })
-
-        const refreshToken = await this.jwtService.signAsync({
-            id: user.id
-        })
-
-        let expired_at = new Date();
-        expired_at.setDate(expired_at.getDate() + 7);
-
-        await this.tokenService.save({
-            user_id: user.id,
-            token: refreshToken,
-            expired_at
-        })
-
         response.status(200);
-        response.cookie('refresh_token', refreshToken, {
-            httpOnly: true,
-            maxAge: 7 * 24 * 60 * 60 * 1000 //1 week
+
+        if (user.tfa_secret) {
+            return {
+                id: user.id
+            }
+        }
+
+        const secret = speackeasy.generateSecret({
+            name: 'My App'
         })
 
         return {
-            token: accessToken
-        };
+            id: user.id,
+            secret: secret.ascii,
+            otpauth_url: secret.otpauth_url
+        }
+        
+    }
+
+    async twoFactor() {
+        // const accessToken = await this.jwtService.signAsync({
+        //     id: user.id
+        // }, { expiresIn: '30s' })
+
+        // const refreshToken = await this.jwtService.signAsync({
+        //     id: user.id
+        // })
+
+        // let expired_at = new Date();
+        // expired_at.setDate(expired_at.getDate() + 7);
+
+        // await this.tokenService.save({
+        //     user_id: user.id,
+        //     token: refreshToken,
+        //     expired_at
+        // })
+
+        // response.status(200);
+        // response.cookie('refresh_token', refreshToken, {
+        //     httpOnly: true,
+        //     maxAge: 7 * 24 * 60 * 60 * 1000 //1 week
+        // })
+
+        // return {
+        //     token: accessToken
+        // };
     }
 
     @Get('user')
