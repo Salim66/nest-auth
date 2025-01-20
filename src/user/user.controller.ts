@@ -2,7 +2,7 @@ import { BadRequestException, Body, Controller, Get, Post, Req, Res, Unauthorize
 import { UserService } from './user.service';
 import * as bcryptjs from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
-import { Request, Response } from 'express';
+import { Request, response, Response } from 'express';
 import { TokenService } from './token.service';
 import { MoreThanOrEqual } from 'typeorm';
 import * as speackeasy from 'speakeasy';
@@ -62,36 +62,64 @@ export class UserController {
             secret: secret.ascii,
             otpauth_url: secret.otpauth_url
         }
-        
+
     }
 
-    async twoFactor() {
-        // const accessToken = await this.jwtService.signAsync({
-        //     id: user.id
-        // }, { expiresIn: '30s' })
+    @Post('two-factor')
+    async twoFactor(
+        @Body('id') id: number,
+        @Body('code') code: string,
+        @Res({ passthrough: true }) response: Response,
+        @Body('secret') secret: string,
+    ) {
+        const user = await this.userService.findOne({ id });
 
-        // const refreshToken = await this.jwtService.signAsync({
-        //     id: user.id
-        // })
+        if (!user) {
+            throw new BadRequestException("invalid credentials");
+        }
 
-        // let expired_at = new Date();
-        // expired_at.setDate(expired_at.getDate() + 7);
+        if (!secret) {
+            secret = user.tfa_secret;
+        }
 
-        // await this.tokenService.save({
-        //     user_id: user.id,
-        //     token: refreshToken,
-        //     expired_at
-        // })
+        const verified = speackeasy.totp.verify({
+            secret,
+            encoding: 'ascii',
+            token: code
+        });
 
-        // response.status(200);
-        // response.cookie('refresh_token', refreshToken, {
-        //     httpOnly: true,
-        //     maxAge: 7 * 24 * 60 * 60 * 1000 //1 week
-        // })
+        if (!verified) {
+            throw new BadRequestException("invalid credentails");
+        }
 
-        // return {
-        //     token: accessToken
-        // };
+        if (user.tfa_secret === '') {
+            await this.userService.update(id, {
+                tfa_secret: secret
+            })
+        }
+
+        const accessToken = await this.jwtService.signAsync({ id }, { expiresIn: '30s' })
+
+        const refreshToken = await this.jwtService.signAsync({ id })
+
+        let expired_at = new Date();
+        expired_at.setDate(expired_at.getDate() + 7);
+
+        await this.tokenService.save({
+            user_id: id,
+            token: refreshToken,
+            expired_at
+        })
+
+        response.status(200);
+        response.cookie('refresh_token', refreshToken, {
+            httpOnly: true,
+            maxAge: 7 * 24 * 60 * 60 * 1000 //1 week
+        })
+
+        return {
+            token: accessToken
+        };
     }
 
     @Get('user')
