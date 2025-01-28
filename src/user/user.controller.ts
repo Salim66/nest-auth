@@ -136,6 +136,7 @@ export class UserController {
             return data;
 
         } catch (error) {
+            console.log("error", error)
             throw new UnauthorizedException();
         }
     }
