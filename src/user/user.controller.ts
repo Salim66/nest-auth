@@ -6,6 +6,7 @@ import { Request, response, Response } from 'express';
 import { TokenService } from './token.service';
 import { MoreThanOrEqual } from 'typeorm';
 import * as speackeasy from 'speakeasy';
+import { OAuth2Client } from 'google-auth-library';
 
 @Controller('')
 export class UserController {
@@ -184,5 +185,59 @@ export class UserController {
         return {
             message: 'success'
         }
+    }
+
+    @Post('google-auth')
+    async googleAuth(
+        @Body('token') token: string,
+        @Res({passthrough: true}) response: Response
+    ) {
+        const clientId = '1062508263263-gn95rc6s2sprhfshamh8t85tboqdc7l0.apps.googleusercontent.com';
+        const client = new OAuth2Client(clientId);
+
+        const ticket = await client.verifyIdToken({
+            idToken: token,
+            audience: clientId
+        });
+
+        const googleUser = ticket.getPayload();
+
+        if (!googleUser) {
+            throw new UnauthorizedException();
+        }
+
+        let user = await this.userService.findOne({ email: googleUser.email });
+
+        if (!user) {
+            user = await this.userService.save({
+                first_name: googleUser.given_name,
+                last_name: googleUser.family_name,
+                email: googleUser.email,
+                password: await bcryptjs.hash(token, 12)
+            });
+        }
+
+        const accessToken = await this.jwtService.signAsync({ id: user.id }, { expiresIn: '30s' })
+
+        const refreshToken = await this.jwtService.signAsync({ id: user.id })
+
+        let expired_at = new Date();
+        expired_at.setDate(expired_at.getDate() + 7);
+
+        await this.tokenService.save({
+            user_id: user.id,
+            token: refreshToken,
+            expired_at
+        })
+
+        response.status(200);
+        response.cookie('refresh_token', refreshToken, {
+            httpOnly: true,
+            maxAge: 7 * 24 * 60 * 60 * 1000 //1 week
+        })
+
+        return {
+            token: accessToken
+        };
     }
 }
